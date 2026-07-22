@@ -1,52 +1,29 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
 import type { Product } from '../types';
 import ProductCard from './ProductCard';
 import CategoryFilter from './CategoryFilter';
-
-// Fetches all products from FakeStoreAPI
-const fetchProducts = async (): Promise<Product[]> => {
-  const response = await axios.get('https://fakestoreapi.com/products');
-  return response.data;
-};
-
-// Fetches products belonging to a specific category
-const fetchProductsByCategory = async (category: string): Promise<Product[]> => {
-  const response = await axios.get(`https://fakestoreapi.com/products/category/${category}`);
-  return response.data;
-};
+import { getProducts } from '../api/products';
 
 const Home = () => {
   // Tracks which category is currently selected ('' means all products)
   const [selectedCategory, setSelectedCategory] = useState('');
 
-  // Fetches all products; only runs when no category is selected
+  // Fetches all products from Firestore; cached under the 'products' key
   const {
     data: allProducts,
-    isLoading: isAllLoading,
-    error: allError,
+    isLoading,
+    error,
   } = useQuery<Product[]>({
     queryKey: ['products'],
-    queryFn: fetchProducts,
-    enabled: selectedCategory === '',
+    queryFn: getProducts,
   });
 
-  // Fetches category-specific products; only runs when a category is selected
-  const {
-    data: categoryProducts,
-    isLoading: isCategoryLoading,
-    error: categoryError,
-  } = useQuery<Product[]>({
-    queryKey: ['products', selectedCategory],
-    queryFn: () => fetchProductsByCategory(selectedCategory),
-    enabled: selectedCategory !== '',
-  });
-
-  // Picks whichever query result is relevant based on the current filter
-  const products = selectedCategory === '' ? allProducts : categoryProducts;
-  const isLoading = selectedCategory === '' ? isAllLoading : isCategoryLoading;
-  const error = selectedCategory === '' ? allError : categoryError;
+  // Filters client-side by category, since Firestore already gave us the full list
+  const products =
+    selectedCategory === ''
+      ? allProducts
+      : allProducts?.filter((product) => product.category === selectedCategory);
 
   return (
     <div>

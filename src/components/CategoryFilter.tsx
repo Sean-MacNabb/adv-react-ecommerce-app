@@ -1,11 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
-
-// Fetches the list of category names from FakeStoreAPI
-const fetchCategories = async (): Promise<string[]> => {
-  const response = await axios.get('https://fakestoreapi.com/products/categories');
-  return response.data;
-};
+import { getProducts } from '../api/products';
 
 interface CategoryFilterProps {
   selectedCategory: string;
@@ -13,11 +7,17 @@ interface CategoryFilterProps {
 }
 
 const CategoryFilter = ({ selectedCategory, onCategoryChange }: CategoryFilterProps) => {
-  // Runs fetchCategories and caches the result under the 'categories' key
-  const { data, isLoading, error } = useQuery<string[]>({
-    queryKey: ['categories'],
-    queryFn: fetchCategories,
+  // Reuses the same 'products' query cache as Home.tsx — React Query
+  // won't re-fetch, it'll just read what's already cached
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['products'],
+    queryFn: getProducts,
   });
+
+  // Derives a unique, sorted list of category names from the product list
+  const categories = data
+    ? Array.from(new Set(data.map((product) => product.category))).sort()
+    : [];
 
   if (isLoading) return <p>Loading categories...</p>;
   if (error) return <p>Error loading categories.</p>;
@@ -28,7 +28,7 @@ const CategoryFilter = ({ selectedCategory, onCategoryChange }: CategoryFilterPr
       onChange={(e) => onCategoryChange(e.target.value)}
     >
       <option value="">All Categories</option>
-      {data?.map((category) => (
+      {categories.map((category) => (
         <option key={category} value={category}>
           {category}
         </option>
